@@ -1,0 +1,30 @@
+def call(def pipelineParams) {
+    pipeline {
+        agent {
+            label 'slave1'
+        }
+        options { 
+            disableConcurrentBuilds() 
+        }
+
+        environment {
+            PATH = "${env.PATH}"
+        }
+        stages {
+            stage('Cache invalidation') {
+                steps {
+                    script{
+                        sh '''
+                        aws_credentials=$(aws sts assume-role --role-arn arn:aws:iam::423085655527:role/Jenkins-Prod-Cross-Account-Role --role-session-name "AWSCLI-Session")
+                                    export AWS_ACCESS_KEY_ID=$(echo $aws_credentials|jq '.Credentials.AccessKeyId'|tr -d '"')
+                                    export AWS_SECRET_ACCESS_KEY=$(echo $aws_credentials|jq '.Credentials.SecretAccessKey'|tr -d '"')
+                                    export AWS_SESSION_TOKEN=$(echo $aws_credentials|jq '.Credentials.SessionToken'|tr -d '"')
+                    invalidation=$(aws cloudfront create-invalidation --distribution-id E2GG6V77HOVB8 --paths ${PATH})
+                    ID=$(echo $invalidation|jq '.Invalidation.Id'|tr -d '"')
+                        '''
+                    }
+                }
+            }
+        }
+    }
+}
